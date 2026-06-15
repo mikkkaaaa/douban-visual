@@ -67,7 +67,7 @@ def render_book_charts(df_filtered):
 
 
 def render_data_insights(df_filtered):
-    st.subheader("🧠 当前筛选结果数据洞察")
+    st.subheader("当前筛选结果数据洞察")
 
     avg_rating = df_filtered["评分"].mean()
     max_rating_row = df_filtered.sort_values("评分", ascending=False).iloc[0]
@@ -101,7 +101,7 @@ def render_data_insights(df_filtered):
 
         st.markdown(
             f"""
-            📌 **时间跨度分析**：当前数据覆盖出版年份约从 **{year_min} 年** 到 **{year_max} 年**。
+             **时间跨度分析**：当前数据覆盖出版年份约从 **{year_min} 年** 到 **{year_max} 年**。
             这说明豆瓣 Top250 中既包含长期沉淀的经典作品，也包含较新的大众阅读作品。
             """
         )
@@ -264,21 +264,42 @@ def render_year_rating_chart(df_filtered):
 
 
 def render_sentiment_analysis(df_filtered):
-    st.subheader("💬 热门短评情感分析")
+    st.subheader("热门短评情感分析")
 
     st.markdown("""
     本模块基于图书热门短评文本进行情感倾向分析，将短评分为积极、中性、消极三类，
     用于观察读者评论情绪与图书评分、热度之间的关系。
     """)
 
-    if not st.checkbox("运行短评情感分析"):
+    if "短评_list" not in df_filtered.columns:
+        st.info("当前数据缺少短评字段，暂不能进行短评情感分析。请确认 books 表中存在 短评_list 字段。")
+        return
+
+    with st.expander("分析方法说明", expanded=False):
+        st.markdown("""
+        本模块使用 SnowNLP 对中文短评进行情感倾向判断。
+
+        情感得分范围为 0 到 1：
+
+        - 大于等于 0.6：积极
+        - 0.4 到 0.6：中性
+        - 小于等于 0.4：消极
+
+        分析结果用于辅助观察读者评论倾向，不能等同于严格的人工标注结果。
+        """)
+
+    if not st.checkbox("运行短评情感分析", key="run_comment_sentiment_analysis"):
         st.caption("勾选后将对当前筛选结果中的热门短评进行情感分析。")
         return
 
     try:
         from utils.sentiment_analyzer import analyze_comment_sentiment
     except ModuleNotFoundError:
-        st.warning("缺少情感分析依赖，请先运行：pip install snownlp")
+        st.warning("缺少情感分析依赖。请在 requirements.txt 中添加 snownlp，然后重新部署。")
+        st.code("snownlp", language="text")
+        return
+    except Exception as e:
+        st.error(f"情感分析模块加载失败：{e}")
         return
 
     with st.spinner("正在分析短评情感，请稍候..."):
@@ -289,8 +310,10 @@ def render_sentiment_analysis(df_filtered):
         return
 
     positive_ratio = comment_df["情感标签"].eq("积极").mean() * 100
+    neutral_ratio = comment_df["情感标签"].eq("中性").mean() * 100
+    negative_ratio = comment_df["情感标签"].eq("消极").mean() * 100
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         st.metric("短评样本数", len(comment_df))
@@ -301,16 +324,22 @@ def render_sentiment_analysis(df_filtered):
     with col3:
         st.metric("积极短评占比", f"{positive_ratio:.1f}%")
 
+    with col4:
+        st.metric("消极短评占比", f"{negative_ratio:.1f}%")
+
+    st.caption(
+        f"当前样本中，中性短评占比为 {neutral_ratio:.1f}%。"
+    )
+
     col_a, col_b = st.columns(2)
 
     with col_a:
         label_count = (
             comment_df["情感标签"]
             .value_counts()
-            .reset_index()
+            .rename_axis("情感标签")
+            .reset_index(name="数量")
         )
-
-        label_count.columns = ["情感标签", "数量"]
 
         fig_label = px.pie(
             label_count,
@@ -329,30 +358,60 @@ def render_sentiment_analysis(df_filtered):
             title="短评情感得分分布"
         )
 
+        fig_hist.update_xaxes(range=[0, 1])
+
         st.plotly_chart(fig_hist, use_container_width=True)
 
     if not book_sentiment_df.empty:
-        st.markdown("### 📚 图书评分与短评情感关系")
+        st.markdown("### 图书评分与短评情感关系")
 
-        fig_scatter = px.scatter(
-            book_sentiment_df,
-            x="评分",
-            y="情感均值",
-            size="短评数量",
-            hover_data=["书名", "短评数量"],
-            title="图书评分 vs 短评平均情感得分",
-            labels={
-                "评分": "豆瓣评分",
-                "情感均值": "短评平均情感得分"
-            },
-            size_max=50
+        scatter_df = book_sentiment_df.copy()
+
+        scatter_df["评分"] = pd.to_numeric(
+            scatter_df["评分"],
+            errors="coerce"
         )
 
-        fig_scatter.update_yaxes(range=[0, 1])
+        scatter_df["情感均值"] = pd.to_numeric(
+            scatter_df["情感均值"],
+            errors="coerce"
+        )
 
-        st.plotly_chart(fig_scatter, use_container_width=True)
+        scatter_df["短评数量"] = pd.to_numeric(
+            scatter_df["短评数量"],
+            errors="coerce"
+        ).fillna(1).clip(lower=1)
 
-        st.markdown("### 🌟 情感得分较高的图书 Top10")
+        scatter_df = scatter_df.dropna(subset=["评分", "情感均值"])
+
+        if scatter_df.empty:
+            st.info("当前数据缺少有效评分或情感均值，暂不能生成评分与情感关系图。")
+        else:
+            fig_scatter = px.scatter(
+                scatter_df,
+                x="评分",
+                y="情感均值",
+                size="短评数量",
+                hover_data=[
+                    "书名",
+                    "短评数量",
+                    "积极占比",
+                    "中性占比",
+                    "消极占比"
+                ],
+                title="图书评分 vs 短评平均情感得分",
+                labels={
+                    "评分": "豆瓣评分",
+                    "情感均值": "短评平均情感得分"
+                },
+                size_max=50
+            )
+
+            fig_scatter.update_yaxes(range=[0, 1])
+
+            st.plotly_chart(fig_scatter, use_container_width=True)
+
+        st.markdown("### 情感得分较高的图书 Top10")
 
         top_positive = (
             book_sentiment_df
@@ -365,7 +424,8 @@ def render_sentiment_analysis(df_filtered):
             x="情感均值",
             y="书名",
             orientation="h",
-            title="短评情感均值 Top10"
+            title="短评情感均值 Top10",
+            text=top_positive["情感均值"].apply(lambda x: f"{x:.2f}")
         )
 
         fig_top_positive.update_xaxes(range=[0, 1])
@@ -375,17 +435,49 @@ def render_sentiment_analysis(df_filtered):
 
         st.plotly_chart(fig_top_positive, use_container_width=True)
 
-    st.markdown("### 🧾 短评情感明细")
+        st.markdown("### 情感得分较低的图书 Top10")
+
+        top_negative = (
+            book_sentiment_df
+            .sort_values("情感均值", ascending=True)
+            .head(10)
+        )
+
+        fig_top_negative = px.bar(
+            top_negative,
+            x="情感均值",
+            y="书名",
+            orientation="h",
+            title="短评情感均值较低的图书 Top10",
+            text=top_negative["情感均值"].apply(lambda x: f"{x:.2f}")
+        )
+
+        fig_top_negative.update_xaxes(range=[0, 1])
+        fig_top_negative.update_layout(
+            yaxis=dict(categoryorder="total descending")
+        )
+
+        st.plotly_chart(fig_top_negative, use_container_width=True)
+
+    st.markdown("### 短评情感明细")
+
+    display_cols = [
+        "书名",
+        "短评",
+        "赞同数",
+        "情感得分",
+        "情感标签"
+    ]
 
     st.dataframe(
-        comment_df[["书名", "短评", "赞同数", "情感得分", "情感标签"]],
+        comment_df[[col for col in display_cols if col in comment_df.columns]],
         use_container_width=True,
-        height=300
+        height=320
     )
 
 
 def render_network_chart(df_filtered):
-    st.subheader("🕸️ 书籍推荐关系网络图")
+    st.subheader("书籍推荐关系网络图")
 
     if not st.checkbox("生成并渲染网络图"):
         return
