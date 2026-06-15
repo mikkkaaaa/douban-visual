@@ -1,0 +1,456 @@
+import tempfile
+import pandas as pd
+import streamlit as st
+import plotly.express as px
+import networkx as nx
+from pyvis.network import Network
+import streamlit.components.v1 as components
+
+
+def render_book_charts(df_filtered):
+    if df_filtered.empty:
+        st.warning("暂无数据进行可视化，请放宽筛选条件。")
+        return
+
+    st.markdown("""
+    本模块从评分、短评热度、出版年份、短评情感和推荐关系等角度，
+    对当前筛选结果进行多维度可视化分析。
+    """)
+
+    st.subheader("📋 当前筛选数据预览")
+
+    preview_cols = [
+        "书名",
+        "评分",
+        "作者/出版信息",
+        "出版年份",
+        "短评总赞"
+    ]
+
+    preview_df = df_filtered[
+        [col for col in preview_cols if col in df_filtered.columns]
+    ]
+
+    st.dataframe(
+        preview_df,
+        use_container_width=True,
+        height=300
+    )
+
+    st.divider()
+
+    render_data_insights(df_filtered)
+
+    st.divider()
+
+    st.subheader("核心指标分析")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        render_top_rating_chart(df_filtered)
+
+    with col2:
+        render_top_votes_chart(df_filtered)
+
+    st.divider()
+    render_rating_votes_scatter(df_filtered)
+
+    st.divider()
+    render_year_rating_chart(df_filtered)
+
+    st.divider()
+    render_sentiment_analysis(df_filtered)
+
+    st.divider()
+    render_network_chart(df_filtered)
+
+
+def render_data_insights(df_filtered):
+    st.subheader("🧠 当前筛选结果数据洞察")
+
+    avg_rating = df_filtered["评分"].mean()
+    max_rating_row = df_filtered.sort_values("评分", ascending=False).iloc[0]
+    hot_row = df_filtered.sort_values("短评总赞", ascending=False).iloc[0]
+
+    year_data = df_filtered["出版年份"].dropna()
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.info(
+            f"当前筛选结果的平均评分为 **{avg_rating:.2f}**，"
+            f"说明该区间图书整体评价较高。"
+        )
+
+    with col2:
+        st.success(
+            f"当前最高评分图书为 **《{max_rating_row['书名']}》**，"
+            f"评分达到 **{max_rating_row['评分']}**。"
+        )
+
+    with col3:
+        st.warning(
+            f"当前短评热度最高的是 **《{hot_row['书名']}》**，"
+            f"短评总赞数为 **{int(hot_row['短评总赞'])}**。"
+        )
+
+    if not year_data.empty:
+        year_min = int(year_data.min())
+        year_max = int(year_data.max())
+
+        st.markdown(
+            f"""
+            📌 **时间跨度分析**：当前数据覆盖出版年份约从 **{year_min} 年** 到 **{year_max} 年**。
+            这说明豆瓣 Top250 中既包含长期沉淀的经典作品，也包含较新的大众阅读作品。
+            """
+        )
+
+
+def render_top_rating_chart(df_filtered):
+    df_top_rating = df_filtered.sort_values("评分", ascending=False).head(20).copy()
+    df_top_rating["rank"] = range(1, len(df_top_rating) + 1)
+
+    fig = px.bar(
+        df_top_rating,
+        x="书名",
+        y="评分",
+        text=df_top_rating["评分"].apply(lambda x: f"{x:.1f}"),
+        color="rank",
+        color_continuous_scale=px.colors.sequential.Plasma,
+        title="评分 Top20"
+    )
+
+    fig.update_layout(
+        xaxis_tickangle=-45,
+        showlegend=False,
+        yaxis=dict(range=[8.5, 10])
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_top_votes_chart(df_filtered):
+    df_top_votes = df_filtered.sort_values("短评总赞", ascending=False).head(20).copy()
+    df_top_votes["rank"] = range(1, len(df_top_votes) + 1)
+
+    fig = px.bar(
+        df_top_votes,
+        x="书名",
+        y="短评总赞",
+        text="短评总赞",
+        color="rank",
+        color_continuous_scale=px.colors.sequential.Viridis,
+        title="热度 Top20：短评总赞数"
+    )
+
+    fig.update_layout(
+        xaxis_tickangle=-45,
+        showlegend=False
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_rating_votes_scatter(df_filtered):
+    """
+    评分与热度关系散点图。
+    兼容公共书库、我的书库、公共 + 我的书库。
+    """
+
+    st.subheader("评分与热度关系")
+
+    if df_filtered.empty:
+        st.info("当前数据为空，暂不能生成评分与热度散点图。")
+        return
+
+    if "评分" not in df_filtered.columns:
+        st.info("当前数据缺少评分字段，暂不能生成评分与热度散点图。")
+        return
+
+    scatter_df = df_filtered.copy()
+
+    # 关键修复：评分转数字
+    scatter_df["评分"] = pd.to_numeric(
+        scatter_df["评分"],
+        errors="coerce"
+    )
+
+    # 关键修复：短评总赞不存在就创建，存在就转数字并填 0
+    if "短评总赞" not in scatter_df.columns:
+        scatter_df["短评总赞"] = 0
+    else:
+        scatter_df["短评总赞"] = pd.to_numeric(
+            scatter_df["短评总赞"],
+            errors="coerce"
+        ).fillna(0)
+
+    # 删除没有评分的数据
+    scatter_df = scatter_df.dropna(subset=["评分"])
+
+    if scatter_df.empty:
+        st.info("当前数据中没有有效评分，暂不能生成评分与热度散点图。")
+        return
+
+    # 气泡大小不能有 NaN，也不能全是 NaN
+    scatter_df["气泡大小"] = scatter_df["短评总赞"].fillna(0).clip(lower=0)
+
+    hover_cols = []
+
+    for col in ["作者/出版信息", "出版年份", "来源", "标签"]:
+        if col in scatter_df.columns:
+            hover_cols.append(col)
+
+    # 如果所有热度都是 0，不使用 size 参数，避免 Plotly 报错
+    if scatter_df["气泡大小"].sum() <= 0:
+        fig = px.scatter(
+            scatter_df,
+            x="短评总赞",
+            y="评分",
+            hover_name="书名" if "书名" in scatter_df.columns else None,
+            hover_data=hover_cols,
+            title="评分与热度关系"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.caption(
+            "当前数据源缺少有效热度数据，因此散点图未使用气泡大小。"
+        )
+
+    else:
+        # 再次确保绝对没有 NaN
+        scatter_df["气泡大小"] = scatter_df["气泡大小"].fillna(0)
+
+        fig = px.scatter(
+            scatter_df,
+            x="短评总赞",
+            y="评分",
+            size="气泡大小",
+            hover_name="书名" if "书名" in scatter_df.columns else None,
+            hover_data=hover_cols,
+            size_max=45,
+            title="评分与热度关系"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.caption(
+            "散点图用于观察图书评分与讨论热度之间的关系。气泡越大，表示短评赞数或评论热度越高。"
+        )
+
+def render_year_rating_chart(df_filtered):
+    df_year = (
+        df_filtered
+        .dropna(subset=["出版年份"])
+        .groupby("出版年份")["评分"]
+        .mean()
+        .reset_index()
+    )
+
+    if df_year.empty:
+        st.info("当前筛选结果暂无有效出版年份数据。")
+        return
+
+    fig = px.line(
+        df_year,
+        x="出版年份",
+        y="评分",
+        markers=True,
+        title="出版年份 vs 平均评分"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_sentiment_analysis(df_filtered):
+    st.subheader("💬 热门短评情感分析")
+
+    st.markdown("""
+    本模块基于图书热门短评文本进行情感倾向分析，将短评分为积极、中性、消极三类，
+    用于观察读者评论情绪与图书评分、热度之间的关系。
+    """)
+
+    if not st.checkbox("运行短评情感分析"):
+        st.caption("勾选后将对当前筛选结果中的热门短评进行情感分析。")
+        return
+
+    try:
+        from utils.sentiment_analyzer import analyze_comment_sentiment
+    except ModuleNotFoundError:
+        st.warning("缺少情感分析依赖，请先运行：pip install snownlp")
+        return
+
+    with st.spinner("正在分析短评情感，请稍候..."):
+        comment_df, book_sentiment_df = analyze_comment_sentiment(df_filtered)
+
+    if comment_df.empty:
+        st.info("当前筛选结果中暂无可用于情感分析的短评数据。")
+        return
+
+    positive_ratio = comment_df["情感标签"].eq("积极").mean() * 100
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("短评样本数", len(comment_df))
+
+    with col2:
+        st.metric("平均情感得分", f"{comment_df['情感得分'].mean():.2f}")
+
+    with col3:
+        st.metric("积极短评占比", f"{positive_ratio:.1f}%")
+
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        label_count = (
+            comment_df["情感标签"]
+            .value_counts()
+            .reset_index()
+        )
+
+        label_count.columns = ["情感标签", "数量"]
+
+        fig_label = px.pie(
+            label_count,
+            names="情感标签",
+            values="数量",
+            title="短评情感倾向分布"
+        )
+
+        st.plotly_chart(fig_label, use_container_width=True)
+
+    with col_b:
+        fig_hist = px.histogram(
+            comment_df,
+            x="情感得分",
+            nbins=20,
+            title="短评情感得分分布"
+        )
+
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+    if not book_sentiment_df.empty:
+        st.markdown("### 📚 图书评分与短评情感关系")
+
+        fig_scatter = px.scatter(
+            book_sentiment_df,
+            x="评分",
+            y="情感均值",
+            size="短评数量",
+            hover_data=["书名", "短评数量"],
+            title="图书评分 vs 短评平均情感得分",
+            labels={
+                "评分": "豆瓣评分",
+                "情感均值": "短评平均情感得分"
+            },
+            size_max=50
+        )
+
+        fig_scatter.update_yaxes(range=[0, 1])
+
+        st.plotly_chart(fig_scatter, use_container_width=True)
+
+        st.markdown("### 🌟 情感得分较高的图书 Top10")
+
+        top_positive = (
+            book_sentiment_df
+            .sort_values("情感均值", ascending=False)
+            .head(10)
+        )
+
+        fig_top_positive = px.bar(
+            top_positive,
+            x="情感均值",
+            y="书名",
+            orientation="h",
+            title="短评情感均值 Top10"
+        )
+
+        fig_top_positive.update_xaxes(range=[0, 1])
+        fig_top_positive.update_layout(
+            yaxis=dict(categoryorder="total ascending")
+        )
+
+        st.plotly_chart(fig_top_positive, use_container_width=True)
+
+    st.markdown("### 🧾 短评情感明细")
+
+    st.dataframe(
+        comment_df[["书名", "短评", "赞同数", "情感得分", "情感标签"]],
+        use_container_width=True,
+        height=300
+    )
+
+
+def render_network_chart(df_filtered):
+    st.subheader("🕸️ 书籍推荐关系网络图")
+
+    if not st.checkbox("生成并渲染网络图"):
+        return
+
+    if len(df_filtered) == 0:
+        st.info("当前筛选条件下没有可用于生成网络图的数据。")
+        return
+
+    max_nodes = min(120, len(df_filtered))
+
+    if max_nodes > 20:
+        network_limit = st.slider(
+            "网络图节点数量",
+            min_value=20,
+            max_value=max_nodes,
+            value=min(60, max_nodes),
+            step=10
+        )
+    else:
+        network_limit = max_nodes
+
+    network_df = df_filtered.head(network_limit)
+
+    st.caption(f"当前网络图展示前 {network_limit} 本书，避免节点过多导致页面卡顿。")
+
+    with st.spinner("正在绘制关系网..."):
+        G = nx.Graph()
+
+        book_names = set(network_df["书名"].values)
+
+        for _, row in network_df.iterrows():
+            G.add_node(
+                row["书名"],
+                title=row["书名"],
+                rating=row["评分"]
+            )
+
+            for rec in row["相关推荐_list"]:
+                if isinstance(rec, dict) and rec.get("title") in book_names:
+                    G.add_edge(row["书名"], rec["title"])
+
+        if len(G.nodes) == 0:
+            st.info("当前书籍之间没有发现足够的关联推荐。")
+            return
+
+        net = Network(
+            height="600px",
+            width="100%",
+            bgcolor="#ffffff",
+            font_color="black",
+            cdn_resources="in_line"
+        )
+
+        net.from_nx(G)
+
+        for node in net.nodes:
+            node["color"] = "#3498db"
+            node["size"] = 15
+            node["title"] = f"{node['id']} ({node.get('rating', '无评分')})"
+
+        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".html")
+        tmp_path = tmp_file.name
+        tmp_file.close()
+
+        net.save_graph(tmp_path)
+
+        with open(tmp_path, "r", encoding="utf-8") as f:
+            components.html(f.read(), height=600)

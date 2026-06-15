@@ -1,0 +1,419 @@
+.hero-box {
+    background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+    padding: 24px 30px;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.hero-box h3 {
+    margin-bottom: 10px;
+    color: #1f2937;
+}
+
+.hero-box p {
+    color: #4b5563;
+    font-size: 1.05rem;
+    line-height: 1.8;
+}
+
+.stChatFloatingInputContainer {
+    padding-bottom: 20px;
+}
+
+.stMarkdown p {
+    font-size: 1.05rem;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    margin-bottom: 18px;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 18px 0 22px 0;
+}
+
+.section-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 18px;
+    background: #eef2ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4f46e5;
+    border: 1px solid #dbeafe;
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.12);
+}
+
+.section-icon svg {
+    stroke: currentColor;
+}
+
+.section-text h3 {
+    margin: 0;
+    color: #111827;
+    font-size: 1.75rem;
+    font-weight: 800;
+}
+
+.section-subtitle {
+    margin: 6px 0 0 0;
+    color: #6b7280;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+/* ---------- 美化 Streamlit Tabs ---------- */
+
+/* 整个 Tab 外层 */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 14px;
+    background: #f8fafc;
+    padding: 10px;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    margin-bottom: 24px;
+}
+
+/* 每一个 Tab 按钮 */
+.stTabs [data-baseweb="tab"] {
+    height: 52px;
+    padding: 0 22px;
+    border-radius: 14px;
+    background: transparent;
+    color: #475569;
+    font-weight: 700;
+    transition: all 0.25s ease;
+}
+
+/* Tab 文字 */
+.stTabs [data-baseweb="tab"] p {
+    font-size: 1.08rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* 鼠标悬停 */
+.stTabs [data-baseweb="tab"]:hover {
+    background: #eef2ff;
+    color: #4338ca;
+}
+
+/* 当前选中的 Tab */
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+    color: white !important;
+    box-shadow: 0 10px 24px rgba(79, 70, 229, 0.25);
+}
+
+/* 当前选中 Tab 的文字 */
+.stTabs [aria-selected="true"] p {
+    color: white !important;
+}
+
+/* 去掉 Streamlit 默认的红色下划线 */
+.stTabs [data-baseweb="tab-highlight"] {
+    display: none;
+}
+
+/* ---------- 评分徽章 ---------- */
+
+.rating-badge {
+    background: linear-gradient(135deg, #111827 0%, #374151 100%);
+    color: white;
+    border-radius: 18px;
+    padding: 20px 22px;
+    text-align: center;
+    box-shadow: 0 10px 24px rgba(17, 24, 39, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    min-width: 110px;
+}
+
+.rating-number {
+    display: block;
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.rating-label {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.9rem;
+    color: #d1d5db;
+}
+
+
+/* ---------- 热门短评卡片 ---------- */
+
+.comment-card {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+}
+
+.comment-card p {
+    margin: 0 0 8px 0;
+    color: #374151;
+    line-height: 1.7;
+}
+
+.comment-card span {
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+/* ---------- 登录页 ---------- */
+
+
+.auth-compact-page {
+    margin-top: 42px;
+    margin-bottom: 18px;
+    text-align: center;
+}
+
+.auth-compact-header {
+    max-width: 620px;
+    margin: 0 auto;
+}
+
+.auth-compact-logo {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    margin: 0 auto 14px auto;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1rem;
+    box-shadow: 0 10px 24px rgba(79, 70, 229, 0.24);
+}
+
+.auth-compact-header h1 {
+    margin: 0;
+    color: #111827;
+    font-size: 1.75rem;
+    font-weight: 850;
+    letter-spacing: -0.03em;
+}
+
+.auth-compact-header p {
+    margin: 10px auto 0 auto;
+    color: #6b7280;
+    font-size: 0.96rem;
+    line-height: 1.7;
+}
+
+.auth-compact-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 18px 22px 16px 22px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.10);
+    margin-top: 8px;
+}
+
+/* 登录页 Tab */
+.auth-compact-card .stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    background: #f8fafc;
+    padding: 6px;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 16px;
+}
+
+.auth-compact-card .stTabs [data-baseweb="tab"] {
+    height: 38px;
+    padding: 0 18px;
+    border-radius: 10px;
+    color: #475569;
+    font-weight: 700;
+}
+
+.auth-compact-card .stTabs [data-baseweb="tab"] p {
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.auth-compact-card .stTabs [aria-selected="true"] {
+    background: #111827 !important;
+    color: white !important;
+}
+
+.auth-compact-card .stTabs [aria-selected="true"] p {
+    color: white !important;
+}
+
+.auth-compact-card .stTabs [data-baseweb="tab-highlight"] {
+    display: none;
+}
+
+/* 输入框更紧凑 */
+.auth-compact-card input {
+    border-radius: 11px !important;
+    font-size: 0.95rem !important;
+}
+
+/* 登录注册按钮 */
+.auth-compact-card .stButton > button,
+.auth-compact-card .stFormSubmitButton > button {
+    height: 42px;
+    border-radius: 12px;
+    font-weight: 800;
+    border: none;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: white;
+    box-shadow: 0 10px 22px rgba(79, 70, 229, 0.22);
+}
+
+.auth-compact-card .stButton > button:hover,
+.auth-compact-card .stFormSubmitButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 26px rgba(79, 70, 229, 0.30);
+}
+
+/* 底部说明 */
+.auth-compact-footer {
+    border-top: 1px solid #f1f5f9;
+    margin-top: 16px;
+    padding-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #94a3b8;
+    font-size: 0.78rem;
+}
+
+
+/* ---------- 登录后侧边栏用户卡片 ---------- */
+
+.user-mini-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.user-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 13px;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+}
+
+.user-name {
+    color: #111827;
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+.user-role {
+    color: #6b7280;
+    font-size: 0.82rem;
+}
+
+/* ---------- 侧边栏轻量登录入口 ---------- */
+
+.guest-mini-card {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+}
+
+.guest-title {
+    color: #111827;
+    font-weight: 800;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+}
+
+.guest-desc {
+    color: #6b7280;
+    font-size: 0.82rem;
+    line-height: 1.6;
+}
+
+.user-mini-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.user-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 13px;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+}
+
+.user-name {
+    color: #111827;
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+.user-role {
+    color: #6b7280;
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.login-required-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 28px 30px;
+    margin-top: 12px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.login-required-card h3 {
+    margin: 0 0 10px 0;
+    color: #111827;
+    font-size: 1.35rem;
+    font-weight: 850;
+}
+
+.login-required-card p {
+    margin: 0;
+    color: #4b5563;
+    line-height: 1.8;
+}

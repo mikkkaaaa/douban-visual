@@ -1,0 +1,16 @@
+streamlit>=1.35.0
+pandas
+plotly
+networkx
+pyvis
+openai
+SQLAlchemy
+PyMySQL
+cryptography
+openpyxl
+statsmodels
+lxml
+beautifulsoup4
+requests
+tqdm
+snownlp
