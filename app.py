@@ -34,7 +34,7 @@ render_auth_sidebar_entry()
 
 
 # ---------- 3. 首页标题区 ----------
-st.title("豆瓣读书 Top250 可视化与 AI 阅读分析平台")
+st.title("图书可视化与 AI 阅读分析平台")
 
 st.markdown("""
 <div class="hero-box">
