@@ -17,7 +17,9 @@ def render_book_charts(df_filtered):
     对当前筛选结果进行多维度可视化分析。
     """)
 
-    st.subheader("📋 当前筛选数据预览")
+    chart_options = render_chart_controls(df_filtered)
+
+    st.subheader("当前筛选数据预览")
 
     preview_cols = [
         "书名",
@@ -43,27 +45,70 @@ def render_book_charts(df_filtered):
 
     st.divider()
 
-    st.subheader("核心指标分析")
+    st.subheader("评分与热度分析")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        render_top_rating_chart(df_filtered)
+        render_top_rating_chart(df_filtered, chart_options["top_n"])
 
     with col2:
-        render_top_votes_chart(df_filtered)
+        render_top_votes_chart(df_filtered, chart_options["top_n"])
 
-    st.divider()
     render_rating_votes_scatter(df_filtered)
 
     st.divider()
+    st.subheader("出版时间趋势分析")
     render_year_rating_chart(df_filtered)
 
     st.divider()
     render_sentiment_analysis(df_filtered)
 
     st.divider()
-    render_network_chart(df_filtered)
+    render_network_chart(df_filtered, chart_options["network_limit"])
+
+
+def render_chart_controls(df_filtered):
+    st.subheader("图表筛选控制")
+
+    max_top_n = min(50, len(df_filtered))
+    min_top_n = min(5, max_top_n)
+    default_top_n = min(20, max_top_n)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        top_n = st.slider(
+            "Top 榜单展示数量",
+            min_value=min_top_n,
+            max_value=max_top_n,
+            value=default_top_n,
+            step=1 if max_top_n < 5 else 5,
+            help="控制评分 Top 和热度 Top 图表展示的书籍数量。"
+        )
+
+    with col2:
+        max_network_nodes = min(120, len(df_filtered))
+        min_network_nodes = min(5, max_network_nodes)
+        default_network_nodes = min(60, max_network_nodes)
+
+        network_limit = st.slider(
+            "网络图最多节点数",
+            min_value=min_network_nodes,
+            max_value=max_network_nodes,
+            value=default_network_nodes,
+            step=1 if max_network_nodes < 5 else 5,
+            help="网络图节点越多越容易卡顿，建议答辩演示时控制在 60 个以内。"
+        )
+
+    st.caption(
+        "这些控制只影响当前页面图表展示，不会修改数据库或原始数据。"
+    )
+
+    return {
+        "top_n": top_n,
+        "network_limit": network_limit
+    }
 
 
 def render_data_insights(df_filtered):
@@ -107,8 +152,8 @@ def render_data_insights(df_filtered):
         )
 
 
-def render_top_rating_chart(df_filtered):
-    df_top_rating = df_filtered.sort_values("评分", ascending=False).head(20).copy()
+def render_top_rating_chart(df_filtered, top_n=20):
+    df_top_rating = df_filtered.sort_values("评分", ascending=False).head(top_n).copy()
     df_top_rating["rank"] = range(1, len(df_top_rating) + 1)
 
     fig = px.bar(
@@ -118,7 +163,7 @@ def render_top_rating_chart(df_filtered):
         text=df_top_rating["评分"].apply(lambda x: f"{x:.1f}"),
         color="rank",
         color_continuous_scale=px.colors.sequential.Plasma,
-        title="评分 Top20"
+        title=f"评分 Top{len(df_top_rating)}"
     )
 
     fig.update_layout(
@@ -128,10 +173,18 @@ def render_top_rating_chart(df_filtered):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+    render_chart_conclusion(
+        "分析结论",
+        build_top_rating_conclusion(df_top_rating)
+    )
 
 
-def render_top_votes_chart(df_filtered):
-    df_top_votes = df_filtered.sort_values("短评总赞", ascending=False).head(20).copy()
+def render_top_votes_chart(df_filtered, top_n=20):
+    if "短评总赞" not in df_filtered.columns:
+        st.info("当前数据缺少短评热度字段，暂不能生成热度 Top 图。")
+        return
+
+    df_top_votes = df_filtered.sort_values("短评总赞", ascending=False).head(top_n).copy()
     df_top_votes["rank"] = range(1, len(df_top_votes) + 1)
 
     fig = px.bar(
@@ -141,7 +194,7 @@ def render_top_votes_chart(df_filtered):
         text="短评总赞",
         color="rank",
         color_continuous_scale=px.colors.sequential.Viridis,
-        title="热度 Top20：短评总赞数"
+        title=f"热度 Top{len(df_top_votes)}：短评总赞数"
     )
 
     fig.update_layout(
@@ -150,6 +203,10 @@ def render_top_votes_chart(df_filtered):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+    render_chart_conclusion(
+        "分析结论",
+        build_top_votes_conclusion(df_top_votes)
+    )
 
 
 def render_rating_votes_scatter(df_filtered):
@@ -217,6 +274,10 @@ def render_rating_votes_scatter(df_filtered):
         st.caption(
             "当前数据源缺少有效热度数据，因此散点图未使用气泡大小。"
         )
+        render_chart_conclusion(
+            "分析结论",
+            "当前数据缺少有效热度值，只能观察评分分布，暂不适合判断评分与讨论热度之间的关系。"
+        )
 
     else:
         # 再次确保绝对没有 NaN
@@ -237,6 +298,10 @@ def render_rating_votes_scatter(df_filtered):
 
         st.caption(
             "散点图用于观察图书评分与讨论热度之间的关系。气泡越大，表示短评赞数或评论热度越高。"
+        )
+        render_chart_conclusion(
+            "分析结论",
+            build_rating_heat_conclusion(scatter_df)
         )
 
 def render_year_rating_chart(df_filtered):
@@ -261,6 +326,10 @@ def render_year_rating_chart(df_filtered):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+    render_chart_conclusion(
+        "分析结论",
+        build_year_rating_conclusion(df_year)
+    )
 
 
 def render_sentiment_analysis(df_filtered):
@@ -329,6 +398,15 @@ def render_sentiment_analysis(df_filtered):
 
     st.caption(
         f"当前样本中，中性短评占比为 {neutral_ratio:.1f}%。"
+    )
+    render_chart_conclusion(
+        "分析结论",
+        build_sentiment_conclusion(
+            positive_ratio=positive_ratio,
+            neutral_ratio=neutral_ratio,
+            negative_ratio=negative_ratio,
+            avg_score=comment_df["情感得分"].mean()
+        )
     )
 
     col_a, col_b = st.columns(2)
@@ -476,32 +554,34 @@ def render_sentiment_analysis(df_filtered):
     )
 
 
-def render_network_chart(df_filtered):
+def render_network_chart(df_filtered, network_limit=None):
     st.subheader("书籍推荐关系网络图")
 
+    st.markdown("""
+    网络图根据每本书的相关推荐关系构建：节点代表书籍，连线代表两本书在推荐列表中互相关联。
+    该图更适合观察当前筛选范围内是否存在明显的阅读主题群。
+    """)
+
     if not st.checkbox("生成并渲染网络图"):
+        st.caption("网络图需要额外渲染 HTML，默认不自动生成，以避免页面加载过慢。")
         return
 
     if len(df_filtered) == 0:
         st.info("当前筛选条件下没有可用于生成网络图的数据。")
         return
 
-    max_nodes = min(120, len(df_filtered))
+    if "相关推荐_list" not in df_filtered.columns:
+        st.info("当前数据缺少相关推荐字段，暂不能生成推荐关系网络。")
+        return
 
-    if max_nodes > 20:
-        network_limit = st.slider(
-            "网络图节点数量",
-            min_value=20,
-            max_value=max_nodes,
-            value=min(60, max_nodes),
-            step=10
-        )
-    else:
-        network_limit = max_nodes
+    max_nodes = min(120, len(df_filtered))
+    network_limit = min(network_limit or max_nodes, max_nodes)
 
     network_df = df_filtered.head(network_limit)
 
-    st.caption(f"当前网络图展示前 {network_limit} 本书，避免节点过多导致页面卡顿。")
+    st.caption(
+        f"当前网络图展示前 {network_limit} 本书。若节点过多或浏览器卡顿，请调低上方网络图节点数。"
+    )
 
     with st.spinner("正在绘制关系网..."):
         G = nx.Graph()
@@ -519,8 +599,22 @@ def render_network_chart(df_filtered):
                 if isinstance(rec, dict) and rec.get("title") in book_names:
                     G.add_edge(row["书名"], rec["title"])
 
-        if len(G.nodes) == 0:
+        edge_count = len(G.edges)
+        isolated_count = len(list(nx.isolates(G)))
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("网络节点数", len(G.nodes))
+        with col2:
+            st.metric("推荐连线数", edge_count)
+        with col3:
+            st.metric("孤立节点数", isolated_count)
+
+        if len(G.nodes) == 0 or edge_count == 0:
             st.info("当前书籍之间没有发现足够的关联推荐。")
+            st.caption(
+                "可以扩大左侧筛选范围，或提高网络图节点数量，让更多书籍进入关系计算。"
+            )
             return
 
         net = Network(
@@ -546,3 +640,101 @@ def render_network_chart(df_filtered):
 
         with open(tmp_path, "r", encoding="utf-8") as f:
             components.html(f.read(), height=600)
+
+        density = nx.density(G)
+        render_chart_conclusion(
+            "分析结论",
+            (
+                f"当前网络包含 {len(G.nodes)} 个节点、{edge_count} 条推荐关系，"
+                f"网络密度约为 {density:.3f}。"
+                "连线越密集，说明当前筛选范围内图书之间的推荐关联越集中；"
+                "孤立节点较多时，说明这些书与当前样本中的其他书关联较弱。"
+            )
+        )
+
+
+def render_chart_conclusion(title, text):
+    if not text:
+        return
+
+    st.info(f"**{title}：** {text}")
+
+
+def build_top_rating_conclusion(df_top_rating):
+    if df_top_rating.empty:
+        return ""
+
+    top_book = df_top_rating.iloc[0]
+    avg_rating = df_top_rating["评分"].mean()
+    min_rating = df_top_rating["评分"].min()
+
+    return (
+        f"当前 Top 榜首为《{top_book['书名']}》，评分 {top_book['评分']:.1f}。"
+        f"榜单平均评分为 {avg_rating:.2f}，最低也达到 {min_rating:.1f}，"
+        "说明当前筛选结果中的高分作品集中度较高。"
+    )
+
+
+def build_top_votes_conclusion(df_top_votes):
+    if df_top_votes.empty:
+        return ""
+
+    top_book = df_top_votes.iloc[0]
+    total_votes = pd.to_numeric(df_top_votes["短评总赞"], errors="coerce").fillna(0).sum()
+    top_ratio = 0
+
+    if total_votes > 0:
+        top_ratio = top_book["短评总赞"] / total_votes * 100
+
+    return (
+        f"当前热度最高的是《{top_book['书名']}》，短评总赞为 {int(top_book['短评总赞'])}。"
+        f"它约占当前热度榜样本总赞数的 {top_ratio:.1f}%，"
+        "可作为观察大众讨论集中度的重点对象。"
+    )
+
+
+def build_rating_heat_conclusion(scatter_df):
+    if scatter_df.empty or len(scatter_df) < 3:
+        return "当前有效样本较少，评分与热度关系只能作为参考。"
+
+    corr = scatter_df[["评分", "短评总赞"]].corr().iloc[0, 1]
+
+    if pd.isna(corr):
+        return "当前热度数据变化较小，暂不能形成稳定的相关性判断。"
+
+    if corr >= 0.4:
+        relation = "评分与热度呈现较明显的正相关，高评分作品往往也更容易获得讨论。"
+    elif corr <= -0.4:
+        relation = "评分与热度呈现一定负相关，说明高讨论度作品不一定评分最高。"
+    else:
+        relation = "评分与热度相关性不强，说明读者讨论热度和评分评价并不完全同步。"
+
+    return f"{relation} 当前相关系数约为 {corr:.2f}。"
+
+
+def build_year_rating_conclusion(df_year):
+    if df_year.empty:
+        return ""
+
+    best_year = df_year.sort_values("评分", ascending=False).iloc[0]
+    year_count = len(df_year)
+
+    return (
+        f"当前共有 {year_count} 个出版年份进入统计，"
+        f"平均评分最高的年份是 {int(best_year['出版年份'])} 年，均分 {best_year['评分']:.2f}。"
+        "由于部分年份样本可能较少，年份均分更适合观察趋势，不宜单独作为质量判断。"
+    )
+
+
+def build_sentiment_conclusion(positive_ratio, neutral_ratio, negative_ratio, avg_score):
+    if positive_ratio >= max(neutral_ratio, negative_ratio):
+        main_tone = "积极短评占比最高，说明当前样本整体评论情绪偏正向。"
+    elif negative_ratio >= max(positive_ratio, neutral_ratio):
+        main_tone = "消极短评占比最高，说明当前样本中存在较多批评或争议表达。"
+    else:
+        main_tone = "中性短评占比最高，说明当前样本评论更偏描述和理性表达。"
+
+    return (
+        f"{main_tone} 平均情感得分为 {avg_score:.2f}。"
+        "SnowNLP 结果适合作为辅助观察，遇到反讽、复杂长句时仍可能存在误判。"
+    )

@@ -94,7 +94,10 @@ def normalize_public_books(public_df):
     unified["出版年份"] = to_numeric_series(get_column(df, "出版年份", None))
     unified["短简介"] = normalize_text_series(get_column(df, "短简介", ""))
     unified["长简介"] = normalize_text_series(get_column(df, "长简介", ""))
-    unified["短评总赞"] = to_numeric_series(get_column(df, "评论数", 0)).fillna(0)
+    heat_source = get_column(df, "短评总赞", None)
+    if heat_source.isna().all():
+        heat_source = get_column(df, "评论数", 0)
+    unified["短评总赞"] = to_numeric_series(heat_source).fillna(0)
     unified["链接"] = normalize_text_series(get_column(df, "链接", ""))
     unified["标签"] = normalize_text_series(get_column(df, "标签", ""))
 

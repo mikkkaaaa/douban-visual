@@ -15,6 +15,27 @@ from utils.data_unifier import (
 )
 
 
+FIELD_ALIASES = {
+    "标题": "书名",
+    "图书名称": "书名",
+    "名称": "书名",
+    "作者": "作者/出版信息",
+    "出版信息": "作者/出版信息",
+    "年份": "出版年份",
+    "出版年": "出版年份",
+    "年代": "出版年份",
+    "热度": "短评总赞",
+    "短评热度": "短评总赞",
+    "评论热度": "短评总赞",
+    "评论数": "短评总赞",
+    "短评数": "短评总赞",
+    "赞同数": "短评总赞",
+    "短评赞数": "短评总赞",
+    "来源文件": "原始来源文件",
+    "数据来源": "来源",
+}
+
+
 # =========================================================
 # 主入口
 # =========================================================
@@ -282,6 +303,8 @@ def build_ai_data_analysis_prompt(df, source_name, analysis_focus, report_length
 4. 分析要具体，尽量结合评分、热度、出版年份、标签、来源等字段。
 5. 最后给出 2-4 个适合当前数据的可视化图表建议。
 6. 图表建议只需要说明图表类型、使用字段和分析目的，不要写代码。
+7. 如果分析个人书库或混合数据，请区分公共书库与个人书库的数据来源差异。
+8. 不要引用样本数据以外的具体书名；没有证据时使用“可能”“倾向于”等谨慎表达。
 
 请按下面结构输出：
 
@@ -385,6 +408,7 @@ def render_ai_chart_dashboard(df, source_name, client):
 
                 for plan in chart_plans:
                     normalized_plan = normalize_chart_plan(plan)
+                    normalized_plan = resolve_chart_plan_fields(normalized_plan, df)
                     ok, message = validate_chart_plan(normalized_plan, df)
 
                     if ok:
@@ -439,6 +463,8 @@ def build_ai_dashboard_plan_prompt(df, source_name, dashboard_goal, chart_count=
 11. 不要所有图表都用同一种类型，尽量组合出能展示不同角度的图表。
 12. 如果当前数据只有公共书库，推荐包含：评分 Top10、出版年份趋势、评分与热度关系。
 13. 如果当前数据包含混合来源，推荐包含：来源分布、评分 Top10、出版年份趋势或标签分布。
+14. “热度”“评论数”“短评赞数”都应优先使用字段：短评总赞。
+15. “作者”“出版信息”都应优先使用字段：作者/出版信息。
 
 当前数据源：{source_name}
 
@@ -589,6 +615,21 @@ def build_default_dashboard_plans(df):
             "reason": "用于观察当前数据源中不同来源图书的构成。"
         })
 
+        if "评分" in df.columns:
+            plans.append({
+                "chart_type": "bar",
+                "title": "不同来源平均评分对比",
+                "description": "对比公共书库和个人书库的平均评分。",
+                "x": "来源",
+                "y": "评分",
+                "size": "",
+                "aggregate": "mean",
+                "top_n": 10,
+                "sort": "desc",
+                "explode_tags": False,
+                "reason": "用于观察不同数据来源在评分水平上的差异。"
+            })
+
     if "标签" in df.columns:
         plans.append({
             "chart_type": "bar",
@@ -604,7 +645,7 @@ def build_default_dashboard_plans(df):
             "reason": "用于观察当前图书数据的主题和类型分布。"
         })
 
-    return plans[:3]
+    return plans[:4]
 
 
 def render_chart_plan_grid(df, chart_plans, section_key):
@@ -694,6 +735,7 @@ def render_ai_single_chart_generator(df, source_name, client):
 
                 chart_plan = parse_ai_chart_json(raw_result)
                 chart_plan = normalize_chart_plan(chart_plan)
+                chart_plan = resolve_chart_plan_fields(chart_plan, df)
 
                 ok, message = validate_chart_plan(chart_plan, df)
 
@@ -777,6 +819,8 @@ def build_ai_single_chart_plan_prompt(df, source_name, user_request):
     aggregate = count
     explode_tags = true
     sort = desc
+13. 如果用户提到“热度”“评论数”“短评赞数”，优先使用字段：短评总赞。
+14. 如果用户提到“作者”或“出版信息”，优先使用字段：作者/出版信息。
 
 当前数据源：{source_name}
 
@@ -918,6 +962,54 @@ def normalize_field_name(value):
         return ""
 
     return text
+
+
+def resolve_chart_plan_fields(plan, df):
+    """
+    将 AI 返回的自然字段名映射到当前 DataFrame 的真实字段。
+    """
+
+    resolved = plan.copy()
+
+    for key in ["x", "y", "size"]:
+        resolved[key] = resolve_field_name(resolved.get(key, ""), df)
+
+    return resolved
+
+
+def resolve_field_name(field_name, df):
+    if not field_name:
+        return ""
+
+    columns = list(df.columns)
+
+    if field_name in columns:
+        return field_name
+
+    alias_target = FIELD_ALIASES.get(field_name)
+    if alias_target in columns:
+        return alias_target
+
+    normalized_field = str(field_name).replace(" ", "").lower()
+
+    for col in columns:
+        normalized_col = str(col).replace(" ", "").lower()
+        if normalized_field == normalized_col:
+            return col
+
+    for alias, target in FIELD_ALIASES.items():
+        normalized_alias = alias.replace(" ", "").lower()
+        if normalized_field == normalized_alias and target in columns:
+            return target
+
+    for col in columns:
+        normalized_col = str(col).replace(" ", "").lower()
+        if normalized_field and (
+            normalized_field in normalized_col or normalized_col in normalized_field
+        ):
+            return col
+
+    return field_name
 
 
 def validate_chart_plan(plan, df):
