@@ -24,7 +24,7 @@ st.set_page_config(
 load_css("assets/style.css")
 
 
-# ---------- 1. 数据与 AI Client 初始化 ----------
+# ---------- 1. 初始化数据和 AI 客户端 ----------
 public_df = load_books()
 client, api_ready = get_ai_client()
 
@@ -34,14 +34,14 @@ render_auth_sidebar_entry()
 
 
 # ---------- 3. 首页标题区 ----------
-st.title("豆瓣读书 Top250 可视化与 AI 智能问答平台")
+st.title("豆瓣读书 Top250 可视化与 AI 阅读分析平台")
 
 st.markdown("""
 <div class="hero-box">
     <h3>基于图书数据的可视化分析与 AI 阅读推荐平台</h3>
     <p>
     本系统围绕豆瓣读书 Top250 数据，提供图书浏览、筛选检索、数据可视化、
-    推荐关系分析与 AI 智能荐书功能。用户可以在游客模式下浏览公共书库；
+    推荐关系分析与 AI 阅读推荐功能。用户可以在游客模式下浏览公共书库；
     登录后可维护个人书库，并在 AI 数据分析模块中分析公共书库、个人书库或混合数据。
     </p>
 </div>
@@ -64,8 +64,8 @@ with col4:
     st.metric("短评总赞", int(public_df["短评总赞"].sum()))
 
 
-# ---------- 5. 侧边栏：公共书库筛选分页 ----------
-# 注意：这里继续只筛选公共豆瓣书库，保证原来的图表和总览稳定
+# ---------- 5. 侧边栏：公共书库筛选和分页 ----------
+# 这里仅筛选公共书库，个人书库在“我的书库”和“AI 数据分析”中单独处理。
 df_filtered, df_page, page, total_pages = render_book_sidebar(public_df)
 
 
@@ -74,7 +74,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "书籍总览",
     "数据可视化",
     "我的书库",
-    "AI 智能馆长",
+    "AI 推荐",
     "AI 数据分析"
 ])
 

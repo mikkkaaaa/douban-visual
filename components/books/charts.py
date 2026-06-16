@@ -227,13 +227,13 @@ def render_rating_votes_scatter(df_filtered):
 
     scatter_df = df_filtered.copy()
 
-    # 关键修复：评分转数字
+    # 将评分统一转为数值，避免字符串或空值影响绘图。
     scatter_df["评分"] = pd.to_numeric(
         scatter_df["评分"],
         errors="coerce"
     )
 
-    # 关键修复：短评总赞不存在就创建，存在就转数字并填 0
+    # 将热度字段统一转为数值；缺失时使用 0 作为默认值。
     if "短评总赞" not in scatter_df.columns:
         scatter_df["短评总赞"] = 0
     else:
@@ -242,14 +242,14 @@ def render_rating_votes_scatter(df_filtered):
             errors="coerce"
         ).fillna(0)
 
-    # 删除没有评分的数据
+    # 散点图需要有效评分，没有评分的数据不参与绘制。
     scatter_df = scatter_df.dropna(subset=["评分"])
 
     if scatter_df.empty:
         st.info("当前数据中没有有效评分，暂不能生成评分与热度散点图。")
         return
 
-    # 气泡大小不能有 NaN，也不能全是 NaN
+    # 气泡大小必须是非负数，避免 Plotly 绘制失败。
     scatter_df["气泡大小"] = scatter_df["短评总赞"].fillna(0).clip(lower=0)
 
     hover_cols = []
@@ -258,7 +258,7 @@ def render_rating_votes_scatter(df_filtered):
         if col in scatter_df.columns:
             hover_cols.append(col)
 
-    # 如果所有热度都是 0，不使用 size 参数，避免 Plotly 报错
+    # 如果所有热度都是 0，则不使用气泡大小。
     if scatter_df["气泡大小"].sum() <= 0:
         fig = px.scatter(
             scatter_df,
@@ -280,7 +280,7 @@ def render_rating_votes_scatter(df_filtered):
         )
 
     else:
-        # 再次确保绝对没有 NaN
+        # 再次填充空值，保证气泡图参数稳定。
         scatter_df["气泡大小"] = scatter_df["气泡大小"].fillna(0)
 
         fig = px.scatter(

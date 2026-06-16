@@ -62,7 +62,7 @@ def render_auth_sidebar_entry():
             """
             <div class="guest-mini-card">
                 <div class="guest-title">游客模式</div>
-                <div class="guest-desc">可浏览公共书库、数据可视化和 AI 荐书。登录后可使用个人书库。</div>
+                <div class="guest-desc">可浏览公共书库、数据可视化和 AI 推荐。登录后可使用个人书库。</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -157,7 +157,7 @@ def render_login_required_card(feature_name="个人书库"):
         <div class="login-required-card">
             <h3>{feature_name}需要登录后使用</h3>
             <p>
-            公共书库、数据可视化和 AI 荐书功能可以直接使用。
+            公共书库、数据可视化和 AI 推荐功能可以直接使用。
             登录后，你可以上传自己的书籍数据，建立个人书库，并让 AI 分析你的阅读数据。
             </p>
         </div>

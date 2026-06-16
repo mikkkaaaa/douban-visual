@@ -6,7 +6,7 @@ from components.ai.prompts import build_book_context, build_curator_system_promp
 def render_curator_chat(df_filtered, api_ready, client):
     st.info(
         f"系统会基于左侧当前筛选出的 {len(df_filtered)} 本图书进行推荐。"
-        "你可以描述想读的主题、情绪状态、写作风格，或者希望控制阅读难度。"
+        "你可以直接描述想读的主题、风格、阅读难度或最近的阅读需求。"
     )
 
     with st.expander("AI 推荐逻辑说明"):
@@ -53,7 +53,7 @@ def render_curator_chat(df_filtered, api_ready, client):
                 "role": "assistant",
                 "content": (
                     "你好，我会根据当前书库帮你挑书。"
-                    "你可以直接告诉我：你最近想读什么，或者你希望从一本书里得到什么。"
+                    "你可以告诉我想读什么类型的书，或者希望这本书带来什么阅读体验。"
                 )
             }
         ]
@@ -66,7 +66,7 @@ def render_curator_chat(df_filtered, api_ready, client):
                     "role": "assistant",
                     "content": (
                         "你好，我会根据当前书库帮你挑书。"
-                        "你可以直接告诉我：你最近想读什么，或者你希望从一本书里得到什么。"
+                        "你可以告诉我想读什么类型的书，或者希望这本书带来什么阅读体验。"
                     )
                 }
             ]
@@ -110,7 +110,7 @@ def render_curator_chat(df_filtered, api_ready, client):
             }
         ]
 
-        # 只保留最近几轮历史，避免上下文过长
+        # 控制对话历史长度，避免传给模型的上下文过长。
         recent_history = st.session_state[message_key][-6:-1]
         messages_for_api.extend(recent_history)
 

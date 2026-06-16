@@ -3,7 +3,7 @@ import pandas as pd
 
 def _safe_text(value, default=""):
     """
-    安全读取单元格内容，避免 NaN / None / 空字符串显示异常。
+    读取文本字段，并处理空值。
     """
     if value is None:
         return default
@@ -20,7 +20,7 @@ def _safe_text(value, default=""):
 
 def build_book_summary_prompt(row):
     """
-    为单本书生成更自然、更克制的阅读指南 Prompt。
+    构造单本书阅读指南的 Prompt。
     """
     book_name = _safe_text(row.get("书名"), "未知书名")
     author_info = _safe_text(row.get("作者/出版信息"), "未知作者")
@@ -38,7 +38,7 @@ def build_book_summary_prompt(row):
 2. 语言可以有一点文学感，但不要像广告文案，不要堆砌修辞。
 3. 少说空泛赞美，多给具体判断。
 4. 全文控制在 300~450 字之内。
-5. 不要使用“灵魂叩问”“馆长私荐”这类明显过度包装的标题。
+5. 不要使用夸张标题，不要把推荐理由写成广告文案。
 
 图书信息：
 书名：{book_name}
@@ -69,8 +69,7 @@ def build_book_summary_prompt(row):
 
 def build_book_context(df_filtered):
     """
-    将当前筛选后的图书整理成模型上下文。
-    为了控制 token，默认最多取 50 本。
+    将当前筛选后的图书整理成模型上下文，默认最多取 50 本。
     """
     if df_filtered.empty:
         return ""
@@ -108,16 +107,15 @@ def build_book_context(df_filtered):
 
 def build_curator_system_prompt(book_context):
     """
-    为聊天荐书构建系统 Prompt。
-    风格更自然，减少“AI 腔”和过度人设化。
+    构造 AI 推荐模块的系统 Prompt。
     """
     return f"""
-你是一个图书推荐系统中的阅读顾问。你的任务是根据和用户的表达，给出自然、具体、可信的荐书建议。
+你是一个图书推荐系统中的阅读助手。你的任务是根据用户的表达，给出自然、具体、可信的荐书建议。
 
 回答原则：
 1. 先理解用户想找什么，再推荐。
-2. 说话自然、真诚、克制，不要过度抒情，不要鸡汤式表达，不要夸张修辞。
-3. 不要使用“馆长姐姐”“灵魂”“治愈一切”“命运回响”这类明显表演化措辞。
+2. 语气自然、简洁、克制，不要过度抒情，不要使用夸张修辞。
+3. 不要假装了解用户没有提供的信息，不要把推荐写成营销文案。
 4. 推荐具体书籍时，必须且只能从中选择，不能编造书库外的书。
 5. 每推荐一本书，都要尽量写清楚：
    - 书名
